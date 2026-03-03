@@ -2,6 +2,12 @@ import tkinter as tk
 from tkinter import messagebox, scrolledtext, simpledialog
 import random
 import datetime
+import os
+try:
+    from PIL import Image, ImageTk
+    HAS_PIL = True
+except ImportError:
+    HAS_PIL = False
 
 # --- DATA ARCHIVE ---
 SCENARIOS = [
@@ -37,7 +43,72 @@ class NeonCityGame:
                                    bg="#0f172a", fg="#38bdf8", font=("Courier", 10, "bold"), command=self.open_codex)
         self.codex_btn.pack(side="bottom", fill="x", pady=5)
 
-        self.show_menu()
+        self.show_splash()
+
+    def show_splash(self):
+        """Display the cover image as a splash screen integrated into the main window."""
+        try:
+            # Withdraw main UI elements initially
+            self.main_container.pack_forget()
+            self.codex_btn.pack_forget()
+            
+            img_path = os.path.join(os.path.dirname(__file__), "assets", "cover.png")
+            
+            # Create splash frame in the main root window
+            self.splash_frame = tk.Frame(self.root, bg="#020617")
+            self.splash_frame.pack(fill="both", expand=True)
+            
+            # Get screen dimensions with margins
+            screen_width = self.root.winfo_screenwidth()
+            screen_height = self.root.winfo_screenheight()
+            max_width = int(screen_width * 0.9)
+            max_height = int(screen_height * 0.9)
+            
+            # Load and scale image
+            if HAS_PIL:
+                img = Image.open(img_path)
+                # Calculate scaling to fit screen while maintaining aspect ratio
+                img_ratio = img.width / img.height
+                screen_ratio = max_width / max_height
+                
+                if img_ratio > screen_ratio:
+                    # Image is wider, scale by width
+                    new_width = max_width
+                    new_height = int(max_width / img_ratio)
+                else:
+                    # Image is taller, scale by height
+                    new_height = max_height
+                    new_width = int(max_height * img_ratio)
+                
+                img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+                photo = ImageTk.PhotoImage(img)
+                label = tk.Label(self.splash_frame, image=photo, bd=0, bg="#020617")
+                label.image = photo  # keep a reference
+                label.pack(expand=True)
+            else:
+                # Fallback: use tkinter's PhotoImage (no scaling available)
+                photo = tk.PhotoImage(file=img_path)
+                label = tk.Label(self.splash_frame, image=photo, bd=0, bg="#020617")
+                label.image = photo
+                label.pack(expand=True)
+            
+            def close_splash(event=None):
+                try:
+                    self.splash_frame.pack_forget()
+                    self.splash_frame.destroy()
+                except:
+                    pass
+                self.show_menu()
+            
+            # Close on click or after 2500ms
+            self.splash_frame.after(2500, close_splash)
+            self.splash_frame.bind("<Button-1>", close_splash)
+            label.bind("<Button-1>", close_splash)
+            self.root.update()  # process events to show splash
+            
+        except Exception as e:
+            # If image fails to load, just show menu
+            self.show_menu()
 
     def log_message(self, message, tag=None):
         self.log_terminal.config(state='normal')
@@ -55,6 +126,10 @@ class NeonCityGame:
         except: pass
 
     def show_menu(self):
+        # Restore main UI elements
+        self.main_container.pack(fill="both", expand=True)
+        self.codex_btn.pack(side="bottom", fill="x", pady=5)
+        
         for w in self.main_container.winfo_children(): w.destroy()
         
         # --- HEADER ---
